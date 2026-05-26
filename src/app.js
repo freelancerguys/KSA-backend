@@ -76,6 +76,12 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   index: false,
 }));
 
+// Backward-compatible alias for deployments/clients missing the /api prefix
+// (e.g. calling /auth/csrf-token instead of /api/auth/csrf-token).
+app.use('/auth', (req, res) => {
+  res.redirect(307, `/api${req.originalUrl}`);
+});
+
 app.use('/api', csrfProtection, routes);
 
 app.use(notFound);
