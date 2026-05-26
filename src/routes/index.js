@@ -7,6 +7,8 @@ import cmsRoutes from './cmsRoutes.js';
 import diaryRoutes from './diaryRoutes.js';
 import scoreRoutes from './scoreRoutes.js';
 import settingsRoutes from './settingsRoutes.js';
+import dashboardRoutes from './dashboardRoutes.js';
+import adminScoreRoutes from './adminScoreRoutes.js';
 
 const router = Router();
 
@@ -22,5 +24,7 @@ router.use('/cms', cmsRoutes);
 router.use('/diaries', diaryRoutes);
 router.use('/scores', scoreRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/admin/dashboard', dashboardRoutes);
+router.use('/admin/scores', adminScoreRoutes);
 
 export default router;

@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ScoreSession } from '../models/ScoreSession.js';
+import { calcStats, buildScoreAnalytics } from '../utils/scoreStats.js';
 
 const MAX_SHOT = 10.9;
 const MAX_SHOTS_PER_SERIES = 10;
@@ -19,25 +20,6 @@ const validateSeries = (series) => {
       }
     }
   }
-};
-
-const calcStats = (sessions) => {
-  const allShots = [];
-  sessions.forEach((s) => {
-    s.series.forEach((series) => {
-      series.shots.forEach((shot) => allShots.push(shot.value));
-    });
-  });
-  if (!allShots.length) {
-    return { totalShots: 0, average: 0, best: 0, sessions: sessions.length };
-  }
-  const sum = allShots.reduce((a, b) => a + b, 0);
-  return {
-    totalShots: allShots.length,
-    average: Number((sum / allShots.length).toFixed(2)),
-    best: Math.max(...allShots),
-    sessions: sessions.length,
-  };
 };
 
 export const getSessions = asyncHandler(async (req, res) => {
@@ -90,33 +72,6 @@ export const deleteSession = asyncHandler(async (req, res) => {
 
 export const getAnalytics = asyncHandler(async (req, res) => {
   const sessions = await ScoreSession.find({ student: req.student._id }).sort('sessionDate');
-  const weekly = [];
-  const monthly = [];
-
-  sessions.forEach((session) => {
-    const shots = session.series.flatMap((s) => s.shots.map((sh) => sh.value));
-    if (!shots.length) return;
-    const avg = shots.reduce((a, b) => a + b, 0) / shots.length;
-    const week = session.sessionDate.toISOString().slice(0, 10);
-    const month = `${session.sessionDate.getFullYear()}-${String(session.sessionDate.getMonth() + 1).padStart(2, '0')}`;
-    weekly.push({ date: week, average: Number(avg.toFixed(2)), shots: shots.length });
-    const existing = monthly.find((m) => m.month === month);
-    if (existing) {
-      existing.shots += shots.length;
-      existing.total += avg * shots.length;
-    } else {
-      monthly.push({ month, shots: shots.length, total: avg * shots.length });
-    }
-  });
-
-  const monthlyData = monthly.map((m) => ({
-    month: m.month,
-    average: Number((m.total / m.shots).toFixed(2)),
-    shots: m.shots,
-  }));
-
-  res.json({
-    success: true,
-    data: { weekly, monthly: monthlyData, stats: calcStats(sessions) },
-  });
+  const { weekly, monthly, stats } = buildScoreAnalytics(sessions);
+  res.json({ success: true, data: { weekly, monthly, stats } });
 });

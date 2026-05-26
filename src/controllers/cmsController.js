@@ -8,6 +8,22 @@ import { Activity } from '../models/Activity.js';
 import { Settings } from '../models/Settings.js';
 import { saveUploadedFile } from '../services/uploadService.js';
 
+const parseBody = (body) => {
+  const data = { ...body };
+  Object.keys(data).forEach((key) => {
+    if (data[key] === 'true') data[key] = true;
+    if (data[key] === 'false') data[key] = false;
+    if (key.toLowerCase().includes('date') && data[key]) {
+      const d = new Date(data[key]);
+      if (!Number.isNaN(d.getTime())) data[key] = d;
+    }
+    if (key === 'order' && data[key] !== undefined && data[key] !== '') {
+      data[key] = Number(data[key]);
+    }
+  });
+  return data;
+};
+
 const crud = (Model, options = {}) => ({
   list: asyncHandler(async (req, res) => {
     const filter = options.publicOnly && !req.user ? { isPublished: true } : {};
@@ -23,7 +39,7 @@ const crud = (Model, options = {}) => ({
     res.json({ success: true, data: item });
   }),
   create: asyncHandler(async (req, res) => {
-    const data = { ...req.body };
+    const data = parseBody(req.body);
     if (req.file) data[options.imageField || 'image'] = await saveUploadedFile(req.file);
     if (options.slugField && data.title) {
       data.slug = slugify(data.title, { lower: true, strict: true });
@@ -34,7 +50,7 @@ const crud = (Model, options = {}) => ({
   update: asyncHandler(async (req, res) => {
     const item = await Model.findById(req.params.id);
     if (!item) throw new ApiError(404, 'Not found');
-    Object.assign(item, req.body);
+    Object.assign(item, parseBody(req.body));
     if (req.file) item[options.imageField || 'image'] = await saveUploadedFile(req.file);
     if (options.slugField && req.body.title) {
       item.slug = slugify(req.body.title, { lower: true, strict: true });

@@ -11,6 +11,7 @@ import {
   normalizeBloodGroup,
   applyProfileFields,
 } from '../utils/studentProfile.js';
+import { importStudentsFromCsv, buildTemplateCsv } from '../services/studentBulkImport.js';
 
 const STUDENT_EDITABLE = [
   'phone',
@@ -360,5 +361,22 @@ export const getStudentDashboard = asyncHandler(async (req, res) => {
       feeHistory,
       ...feeMeta,
     },
+  });
+});
+
+export const downloadBulkImportTemplate = asyncHandler(async (req, res) => {
+  const csv = buildTemplateCsv();
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="KSA_Students_Import_Template.csv"');
+  res.send(csv);
+});
+
+export const bulkImportStudents = asyncHandler(async (req, res) => {
+  if (!req.file?.buffer) throw new ApiError(400, 'CSV file is required');
+  const result = await importStudentsFromCsv(req.file.buffer);
+  res.json({
+    success: true,
+    message: `Imported ${result.created} student(s)`,
+    data: result,
   });
 });

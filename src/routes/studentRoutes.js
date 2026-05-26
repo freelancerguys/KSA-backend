@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import { validate } from '../middlewares/validate.js';
 import { protect, authorize } from '../middlewares/auth.js';
 import { upload } from '../middlewares/upload.js';
+import { uploadCsv } from '../middlewares/uploadCsv.js';
 import * as studentController from '../controllers/studentController.js';
 import { adminLimiter } from '../middlewares/rateLimiters.js';
 import { audit } from '../middlewares/auditLog.js';
@@ -16,6 +17,14 @@ router.get('/profile', authorize('student'), studentController.getProfile);
 router.put('/profile', authorize('student'), upload.single('photo'), studentController.updateProfile);
 
 router.get('/admin/stats', authorize('admin'), studentController.getDashboardStats);
+router.get('/bulk-import/template', authorize('admin'), studentController.downloadBulkImportTemplate);
+router.post(
+  '/bulk-import',
+  authorize('admin'),
+  adminLimiter,
+  uploadCsv.single('file'),
+  studentController.bulkImportStudents
+);
 router.get('/', authorize('admin'), studentController.getStudents);
 router.get('/:id', authorize('admin'), studentController.getStudent);
 router.post(

@@ -9,6 +9,7 @@ import { generateUpiQrDataUrl } from '../utils/upiQr.js';
 import { notifyPaymentStatus } from '../services/emailService.js';
 import { getPaymentSettings } from '../services/settingsService.js';
 import { getEffectiveMonthlyFee, getFeeMeta } from '../services/feeService.js';
+import { clearDashboardCache } from '../services/dashboardService.js';
 
 const getCurrentMonthYear = () => {
   const now = new Date();
@@ -105,6 +106,7 @@ export const approvePayment = asyncHandler(async (req, res) => {
   payment.approvedAt = new Date();
   payment.approvedBy = req.user._id;
   await payment.save();
+  clearDashboardCache();
 
   const student = await Student.findById(payment.student._id || payment.student).populate('user');
   const { invoice } = await createInvoiceForPayment(payment, student);
@@ -119,6 +121,7 @@ export const rejectPayment = asyncHandler(async (req, res) => {
   payment.status = 'rejected';
   payment.rejectionReason = req.body.reason || 'Invalid proof';
   await payment.save();
+  clearDashboardCache();
   const student = await Student.findById(payment.student).populate('user');
   await notifyPaymentStatus(student, payment, 'rejected');
   res.json({ success: true, data: payment });
