@@ -12,6 +12,7 @@ const baseCookie = () => ({
   secure: env.cookieSecure,
   sameSite: env.cookieSameSite,
   path: '/',
+  ...(env.cookieDomain ? { domain: env.cookieDomain } : {}),
 });
 
 const accessCookieName = (portal) => `accessToken_${portal}`;
@@ -27,24 +28,26 @@ export const setAuthCookies = (res, { accessToken, refreshToken }, portal = 'stu
     ...baseCookie(),
     maxAge: env.refreshTokenMaxAgeMs,
   });
-  // Clear legacy shared cookies so portals do not overwrite each other
-  res.clearCookie('accessToken', { path: '/' });
-  res.clearCookie('refreshToken', { path: '/' });
+  const clearOpts = { path: '/', ...(env.cookieDomain ? { domain: env.cookieDomain } : {}) };
+  res.clearCookie('accessToken', clearOpts);
+  res.clearCookie('refreshToken', clearOpts);
 };
 
 export const clearAuthCookies = (res, portal) => {
   if (portal) {
     const p = normalizePortal(portal);
-    res.clearCookie(accessCookieName(p), { path: '/' });
-    res.clearCookie(refreshCookieName(p), { path: '/' });
+    const clearOpts = { path: '/', ...(env.cookieDomain ? { domain: env.cookieDomain } : {}) };
+    res.clearCookie(accessCookieName(p), clearOpts);
+    res.clearCookie(refreshCookieName(p), clearOpts);
     return;
   }
+  const clearOpts = { path: '/', ...(env.cookieDomain ? { domain: env.cookieDomain } : {}) };
   PORTALS.forEach((p) => {
-    res.clearCookie(accessCookieName(p), { path: '/' });
-    res.clearCookie(refreshCookieName(p), { path: '/' });
+    res.clearCookie(accessCookieName(p), clearOpts);
+    res.clearCookie(refreshCookieName(p), clearOpts);
   });
-  res.clearCookie('accessToken', { path: '/' });
-  res.clearCookie('refreshToken', { path: '/' });
+  res.clearCookie('accessToken', clearOpts);
+  res.clearCookie('refreshToken', clearOpts);
 };
 
 export const getAccessCookieName = (portal) => accessCookieName(normalizePortal(portal));
@@ -85,5 +88,6 @@ export const setCsrfCookie = (res, token) => {
     sameSite: env.cookieSameSite,
     path: '/',
     maxAge: 24 * 60 * 60 * 1000,
+    ...(env.cookieDomain ? { domain: env.cookieDomain } : {}),
   });
 };

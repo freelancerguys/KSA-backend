@@ -9,13 +9,13 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
-import routes from './routes/index.js';
+import { apiStack } from './middlewares/apiMount.js';
+import { apiPathRewrite } from './middlewares/apiPathRewrite.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
 import { initCloudinary } from './config/cloudinary.js';
 import { httpsRedirect } from './middlewares/httpsRedirect.js';
 import { ipBlocker } from './middlewares/ipBlocker.js';
 import { globalLimiter } from './middlewares/rateLimiters.js';
-import { csrfProtection } from './middlewares/csrf.js';
 import dns from 'dns';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -51,9 +51,26 @@ app.use(
   })
 );
 
+const corsOrigins = [env.clientUrl, env.adminUrl].filter(Boolean);
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (corsOrigins.includes(origin)) return true;
+  try {
+    const host = new URL(origin).hostname;
+    const apex = new URL(env.clientUrl).hostname;
+    if (host === apex || host.endsWith(`.${apex}`)) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+};
+
 app.use(
   cors({
-    origin: [env.clientUrl, env.adminUrl],
+    origin: (origin, callback) => {
+      callback(null, isAllowedOrigin(origin));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Portal'],
@@ -76,7 +93,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   index: false,
 }));
 
-app.use('/api', csrfProtection, routes);
+app.use(apiPathRewrite);
+app.use('/api', ...apiStack);
+app.use(...apiStack);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -15,8 +15,10 @@ export const env = {
   refreshTokenMaxAgeMs: 7 * 24 * 60 * 60 * 1000,
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   adminUrl: process.env.ADMIN_URL || 'http://localhost:5174',
+  /** Set to .kalyanishootingacademy.in in production when admin uses the main-site API URL. */
+  cookieDomain: process.env.COOKIE_DOMAIN || undefined,
   cookieSecure: isProd || process.env.COOKIE_SECURE === 'true',
-  cookieSameSite: process.env.COOKIE_SAME_SITE || (isProd ? 'strict' : 'lax'),
+  cookieSameSite: process.env.COOKIE_SAME_SITE || (isProd ? 'lax' : 'lax'),
   forceHttps: isProd || process.env.FORCE_HTTPS === 'true',
   rateLimitWindowMs: 15 * 60 * 1000,
   rateLimitMax:

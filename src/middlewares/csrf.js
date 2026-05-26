@@ -5,9 +5,13 @@ import { logSecurityEvent } from '../services/securityService.js';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const SKIP_PREFIXES = [
   '/api/health',
+  '/health',
   '/api/auth/login',
   '/api/auth/refresh',
   '/api/auth/csrf-token',
+  '/auth/login',
+  '/auth/refresh',
+  '/auth/csrf-token',
 ];
 
 export const csrfProtection = asyncHandler(async (req, res, next) => {
