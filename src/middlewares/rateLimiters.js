@@ -2,9 +2,12 @@ import rateLimit from 'express-rate-limit';
 import { env } from '../config/env.js';
 import { logSecurityEvent, blockIp, getClientIp } from '../services/securityService.js';
 
-const isAuthRoute = (req) => {
+const isExemptRoute = (req) => {
   const path = req.originalUrl || req.path || '';
-  return path.startsWith('/api/auth');
+  if (path.startsWith('/api/auth') || path.startsWith('/auth/')) return true;
+  if (path === '/health' || path.startsWith('/health/')) return true;
+  if (path === '/api/health' || path.startsWith('/api/health/')) return true;
+  return false;
 };
 
 const limitHandler = (type, message) => async (req, res) => {
@@ -24,7 +27,7 @@ export const globalLimiter = rateLimit({
   max: env.rateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => isAuthRoute(req),
+  skip: (req) => isExemptRoute(req),
   handler: limitHandler('global', 'Too many requests. Please try again later.'),
 });
 

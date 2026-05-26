@@ -12,10 +12,6 @@ import adminScoreRoutes from './adminScoreRoutes.js';
 
 const router = Router();
 
-router.get('/health', (req, res) => {
-  res.json({ success: true, message: 'Kalyani Shooting Academy API is running' });
-});
-
 router.use('/auth', authRoutes);
 router.use('/students', studentRoutes);
 router.use('/payments', paymentRoutes);

@@ -10,6 +10,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
 import routes from './routes/index.js';
+import authRoutes from './routes/authRoutes.js';
+import healthRoutes from './routes/healthRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
 import { initCloudinary } from './config/cloudinary.js';
 import { httpsRedirect } from './middlewares/httpsRedirect.js';
@@ -38,6 +40,10 @@ dns.lookup("google.com", (err, address) => {
 });
 
 app.set('trust proxy', 1);
+
+// Health checks — no CSRF, rate limit, or IP block (for Nginx/monitoring)
+app.use('/health', healthRoutes);
+app.use('/api/health', healthRoutes);
 
 app.use(httpsRedirect);
 
@@ -76,11 +82,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
   index: false,
 }));
 
-// Backward-compatible alias for deployments/clients missing the /api prefix
-// (e.g. calling /auth/csrf-token instead of /api/auth/csrf-token).
-app.use('/auth', (req, res) => {
-  res.redirect(307, `/api${req.originalUrl}`);
-});
+// Nginx sometimes strips /api (proxy_pass .../;). Mount auth at /auth as well.
+app.use('/auth', csrfProtection, authRoutes);
 
 app.use('/api', csrfProtection, routes);
 

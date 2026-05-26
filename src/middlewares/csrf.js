@@ -3,11 +3,20 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { logSecurityEvent } from '../services/securityService.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const SKIP_PATHS = ['/api/health', '/api/auth/login', '/api/auth/refresh', '/api/auth/csrf-token'];
+const SKIP_PREFIXES = [
+  '/api/health',
+  '/health',
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/auth/csrf-token',
+  '/auth/login',
+  '/auth/refresh',
+  '/auth/csrf-token',
+];
 
 export const csrfProtection = asyncHandler(async (req, res, next) => {
   const url = req.originalUrl || req.path;
-  if (SAFE_METHODS.has(req.method) || SKIP_PATHS.some((p) => url.startsWith(p))) {
+  if (SAFE_METHODS.has(req.method) || SKIP_PREFIXES.some((p) => url.startsWith(p))) {
     return next();
   }
 
