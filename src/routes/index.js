@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import authRoutes from './authRoutes.js';
+import healthRoutes from './healthRoutes.js';
 import studentRoutes from './studentRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
 import invoiceRoutes from './invoiceRoutes.js';
@@ -12,6 +13,7 @@ import adminScoreRoutes from './adminScoreRoutes.js';
 
 const router = Router();
 
+router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/students', studentRoutes);
 router.use('/payments', paymentRoutes);

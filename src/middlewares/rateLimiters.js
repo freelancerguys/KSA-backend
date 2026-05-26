@@ -4,8 +4,7 @@ import { logSecurityEvent, blockIp, getClientIp } from '../services/securityServ
 
 const isExemptRoute = (req) => {
   const path = req.originalUrl || req.path || '';
-  if (path.startsWith('/api/auth') || path.startsWith('/auth/')) return true;
-  if (path === '/health' || path.startsWith('/health/')) return true;
+  if (path.startsWith('/api/auth')) return true;
   if (path === '/api/health' || path.startsWith('/api/health/')) return true;
   return false;
 };
