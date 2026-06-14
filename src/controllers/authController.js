@@ -1,32 +1,31 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import * as authService from '../services/authService.js';
 import { User } from '../models/User.js';
-import {
-  setAuthCookies,
-  clearAuthCookies,
-  setCsrfCookie,
-  normalizePortal,
-  extractRefreshTokenFromCookies,
-} from '../utils/cookieAuth.js';
-import { generateCsrfToken } from '../services/securityService.js';
+import { normalizePortal } from '../utils/cookieAuth.js';
 import { validatePassword } from '../utils/passwordPolicy.js';
 import { ApiError } from '../utils/ApiError.js';
 import { verifyRefreshToken } from '../utils/generateTokens.js';
+import { verifyCaptcha, createCaptcha } from '../services/captchaService.js';
 
 const authPayload = (result) => ({
   user: result.user,
   profile: result.profile,
+  accessToken: result.accessToken,
+  refreshToken: result.refreshToken,
 });
 
-export const getCsrfToken = asyncHandler(async (req, res) => {
-  const token = generateCsrfToken();
-  setCsrfCookie(res, token);
-  res.json({ success: true, data: { csrfToken: token } });
+export const getCaptcha = asyncHandler(async (req, res) => {
+  res.json({ success: true, data: createCaptcha() });
 });
 
 export const login = asyncHandler(async (req, res) => {
-  const { identifier, password, portal: portalBody } = req.body;
+  const { identifier, password, portal: portalBody, captchaId, captchaAnswer } = req.body;
   const portal = normalizePortal(portalBody || req.headers['x-portal']);
+
+  if (portal === 'admin') {
+    await verifyCaptcha(captchaId, captchaAnswer, req);
+  }
+
   const result = await authService.loginUser({ identifier, password }, req);
 
   if (portal === 'admin' && result.user.role !== 'admin') {
@@ -36,10 +35,22 @@ export const login = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Please use the admin panel for admin login.');
   }
 
-  setAuthCookies(res, {
-    accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
-  }, portal);
+  res.json({
+    success: true,
+    message: 'Login successful',
+    data: authPayload(result),
+  });
+});
+
+export const googleLogin = asyncHandler(async (req, res) => {
+  const { idToken, portal: portalBody } = req.body;
+  const portal = normalizePortal(portalBody || req.headers['x-portal']);
+
+  if (portal !== 'student') {
+    throw new ApiError(403, 'Google sign-in is only available for students');
+  }
+
+  const result = await authService.loginWithGoogle(idToken, req);
   res.json({
     success: true,
     message: 'Login successful',
@@ -48,25 +59,21 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const refreshToken = asyncHandler(async (req, res) => {
-  const headerPortal = normalizePortal(req.headers['x-portal']);
-  const token =
-    extractRefreshTokenFromCookies(req, headerPortal)
-    || req.body?.refreshToken;
+  const token = req.body?.refreshToken;
   if (!token) throw new ApiError(401, 'Refresh token missing');
 
   const result = await authService.refreshAccessToken(token);
-  const sessionPortal = result.user.role === 'admin' ? 'admin' : 'student';
-
-  setAuthCookies(res, {
-    accessToken: result.accessToken,
-    refreshToken: token,
-  }, sessionPortal);
-  res.json({ success: true, data: { accessToken: result.accessToken } });
+  res.json({
+    success: true,
+    data: {
+      accessToken: result.accessToken,
+      refreshToken: token,
+    },
+  });
 });
 
 export const logout = asyncHandler(async (req, res) => {
-  const portal = normalizePortal(req.headers['x-portal']);
-  const refresh = extractRefreshTokenFromCookies(req, portal);
+  const refresh = req.body?.refreshToken;
   if (refresh) {
     try {
       const decoded = verifyRefreshToken(refresh);
@@ -75,7 +82,6 @@ export const logout = asyncHandler(async (req, res) => {
       // ignore invalid refresh on logout
     }
   }
-  clearAuthCookies(res, portal);
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
@@ -83,7 +89,6 @@ export const changePassword = asyncHandler(async (req, res) => {
   const check = validatePassword(req.body.newPassword);
   if (!check.valid) throw new ApiError(400, check.errors[0]);
   await authService.changePassword(req.user._id, req.body);
-  clearAuthCookies(res);
   res.json({ success: true, message: 'Password updated successfully. Please sign in again.' });
 });
 

@@ -12,6 +12,13 @@ import {
   applyProfileFields,
 } from '../utils/studentProfile.js';
 import { importStudentsFromCsv, buildTemplateCsv } from '../services/studentBulkImport.js';
+import {
+  getStudentNotifications,
+  applyStudentNotificationStates,
+  markStudentNotificationRead,
+  dismissStudentNotification,
+} from '../services/studentNotificationService.js';
+import { generateStudentIdCardPdf, buildIdCardFilename } from '../services/idCardService.js';
 
 const STUDENT_EDITABLE = [
   'phone',
@@ -102,7 +109,7 @@ export const createStudent = asyncHandler(async (req, res) => {
 function pickStudentFields(body) {
   const keys = [
     'alternatePhone', 'dateOfBirth', 'gender', 'bloodGroup', 'parentGuardianName',
-    'emergencyContact', 'personalBio', 'preferredWeaponType', 'shootingExperience',
+    'motherName', 'fatherName', 'emergencyContact', 'personalBio', 'preferredWeaponType', 'shootingExperience',
     'competitionLevel', 'wbShooterId', 'nraiShooterId', 'shootingCategory',
     'assignedCoach',
   ];
@@ -117,8 +124,8 @@ function pickStudentFields(body) {
       out.bloodGroup = normalizeBloodGroup(body.bloodGroup);
       return;
     }
-    if (k === 'parentGuardianName') {
-      out.parentGuardianName = String(body.parentGuardianName || '').trim();
+    if (k === 'parentGuardianName' || k === 'motherName' || k === 'fatherName') {
+      out[k] = String(body[k] || '').trim();
       return;
     }
     if (body[k] !== '') out[k] = body[k];
@@ -170,7 +177,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
 
   const adminFields = [
     'fullName', 'phone', 'alternatePhone', 'address', 'joiningDate', 'dateOfBirth',
-    'gender', 'bloodGroup', 'parentGuardianName', 'emergencyContact', 'personalBio',
+    'gender', 'bloodGroup', 'parentGuardianName', 'motherName', 'fatherName', 'emergencyContact', 'personalBio',
     'wbShooterId', 'nraiShooterId', 'shootingCategory', 'preferredWeaponType',
     'assignedCoach', 'shootingExperience', 'competitionLevel',
     'isCustomFeeEnabled', 'customMonthlyFee', 'feeDiscount', 'feeDueDay', 'feeAmount',
@@ -181,7 +188,7 @@ export const updateStudent = asyncHandler(async (req, res) => {
     if (body[f] !== undefined) updateData[f] = body[f];
   });
 
-  applyProfileFields(updateData, body, ['gender', 'bloodGroup', 'parentGuardianName']);
+  applyProfileFields(updateData, body, ['gender', 'bloodGroup', 'parentGuardianName', 'motherName', 'fatherName']);
 
   if (body.isCustomFeeEnabled === false) {
     updateData.isCustomFeeEnabled = false;
@@ -240,6 +247,19 @@ export const uploadDocuments = asyncHandler(async (req, res) => {
   if (!student) throw new ApiError(404, 'Student not found');
 
   const files = req.files || [];
+  if (!files.length) throw new ApiError(400, 'No documents uploaded');
+
+  const maxBytes = 1024 * 1024;
+  for (const file of files) {
+    if (file.size > maxBytes) {
+      throw new ApiError(400, `${file.originalname} exceeds the 1 MB limit`);
+    }
+    const ext = file.originalname?.toLowerCase().endsWith('.pdf');
+    if (file.mimetype !== 'application/pdf' || !ext) {
+      throw new ApiError(400, `${file.originalname} must be a PDF file`);
+    }
+  }
+
   for (let i = 0; i < files.length; i++) {
     const fileUrl = await saveUploadedFile(files[i]);
     student.documents.push({
@@ -362,6 +382,45 @@ export const getStudentDashboard = asyncHandler(async (req, res) => {
       ...feeMeta,
     },
   });
+});
+
+export const getNotifications = asyncHandler(async (req, res) => {
+  const raw = await getStudentNotifications(req.student, { isActive: req.user.isActive !== false });
+  const notifications = await applyStudentNotificationStates(req.user._id, raw);
+  res.json({ success: true, data: { notifications } });
+});
+
+export const markNotificationRead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { fingerprint } = req.body;
+  await markStudentNotificationRead(req.user._id, id, fingerprint);
+  res.json({ success: true, message: 'Notification marked as read' });
+});
+
+export const dismissNotification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { fingerprint } = req.body;
+  await dismissStudentNotification(req.user._id, id, fingerprint);
+  res.json({ success: true, message: 'Notification removed' });
+});
+
+export const downloadOwnIdCard = asyncHandler(async (req, res) => {
+  const student = req.student;
+  const pdf = await generateStudentIdCardPdf(student);
+  const filename = buildIdCardFilename(student);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(pdf);
+});
+
+export const downloadStudentIdCard = asyncHandler(async (req, res) => {
+  const student = await Student.findById(req.params.id);
+  if (!student) throw new ApiError(404, 'Student not found');
+  const pdf = await generateStudentIdCardPdf(student);
+  const filename = buildIdCardFilename(student);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(pdf);
 });
 
 export const downloadBulkImportTemplate = asyncHandler(async (req, res) => {

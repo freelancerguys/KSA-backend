@@ -7,6 +7,11 @@ import {
   getTopShooters,
   getDashboardNotifications,
 } from '../services/dashboardService.js';
+import {
+  applyAdminNotificationStates,
+  markNotificationRead as saveNotificationRead,
+  dismissNotification as saveNotificationDismiss,
+} from '../services/adminNotificationService.js';
 
 export const stats = asyncHandler(async (req, res) => {
   const data = await getDashboardStats();
@@ -30,12 +35,27 @@ export const payments = asyncHandler(async (req, res) => {
 });
 
 export const activities = asyncHandler(async (req, res) => {
-  const [activityData, notifications] = await Promise.all([
+  const [activityData, rawNotifications] = await Promise.all([
     getDashboardActivities(Number(req.query.limit) || 15),
     getDashboardNotifications(),
   ]);
+  const notifications = await applyAdminNotificationStates(req.user._id, rawNotifications);
   res.json({
     success: true,
     data: { ...activityData, notifications },
   });
+});
+
+export const markNotificationRead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { fingerprint } = req.body;
+  await saveNotificationRead(req.user._id, id, fingerprint);
+  res.json({ success: true, message: 'Notification marked as read' });
+});
+
+export const dismissNotification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { fingerprint } = req.body;
+  await saveNotificationDismiss(req.user._id, id, fingerprint);
+  res.json({ success: true, message: 'Notification removed' });
 });

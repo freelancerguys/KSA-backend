@@ -32,6 +32,8 @@ const studentSchema = new mongoose.Schema(
       default: '',
     },
     parentGuardianName: { type: String, trim: true, default: '' },
+    motherName: { type: String, trim: true, default: '' },
+    fatherName: { type: String, trim: true, default: '' },
     emergencyContact: { type: String, default: '' },
     personalBio: { type: String, default: '' },
     joiningDate: { type: Date, default: Date.now },

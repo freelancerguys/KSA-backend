@@ -35,8 +35,8 @@ export const applyProfileFields = (target, body, fields) => {
       target.bloodGroup = normalizeBloodGroup(body.bloodGroup);
       return;
     }
-    if (key === 'parentGuardianName') {
-      target.parentGuardianName = String(body.parentGuardianName || '').trim();
+    if (key === 'parentGuardianName' || key === 'motherName' || key === 'fatherName') {
+      target[key] = String(body[key] || '').trim();
       return;
     }
     target[key] = body[key];

@@ -46,10 +46,27 @@ const fileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
+const pdfFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const mime = file.mimetype?.toLowerCase();
+
+  if (ext !== '.pdf' || mime !== 'application/pdf') {
+    return cb(new Error('Only PDF documents are allowed'), false);
+  }
+
+  cb(null, true);
+};
+
 export const upload = multer({
   storage,
   limits: { fileSize: env.maxUploadBytes, files: 10 },
   fileFilter,
+});
+
+export const uploadPdf = multer({
+  storage,
+  limits: { fileSize: 1024 * 1024, files: 10 },
+  fileFilter: pdfFileFilter,
 });
 
 export const getFileUrl = (filename, req) => {

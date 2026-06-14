@@ -4,21 +4,10 @@ import { ApiError } from '../utils/ApiError.js';
 import { User } from '../models/User.js';
 import { Student } from '../models/Student.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { PORTALS, extractAccessTokenFromCookies } from '../utils/cookieAuth.js';
-
-const getPortal = (req) => {
-  const header = String(req.headers['x-portal'] || '').toLowerCase();
-  return PORTALS.includes(header) ? header : null;
-};
 
 const extractToken = (req) => {
-  const portal = getPortal(req);
-  const cookieToken = extractAccessTokenFromCookies(req, portal);
-  if (cookieToken) return cookieToken;
-
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) return authHeader.split(' ')[1];
-
   return null;
 };
 

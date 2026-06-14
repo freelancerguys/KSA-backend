@@ -11,6 +11,7 @@ const securityLogSchema = new mongoose.Schema(
         'ip_blocked',
         'rate_limit',
         'csrf_failed',
+        'captcha_failed',
         'suspicious_request',
       ],
       required: true,

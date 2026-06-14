@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { SecurityLog } from '../models/SecurityLog.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { env } from '../config/env.js';
@@ -75,7 +74,5 @@ export const logAdminAction = async (req, action, resource = '', resourceId = ''
     // non-blocking
   }
 };
-
-export const generateCsrfToken = () => crypto.randomBytes(32).toString('hex');
 
 export { getClientIp };

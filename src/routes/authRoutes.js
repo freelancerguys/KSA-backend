@@ -9,7 +9,7 @@ import * as authController from '../controllers/authController.js';
 
 const router = Router();
 
-router.get('/csrf-token', authController.getCsrfToken);
+router.get('/captcha', authController.getCaptcha);
 
 router.post(
   '/login',
@@ -20,6 +20,16 @@ router.post(
     validate,
   ],
   authController.login
+);
+
+router.post(
+  '/google',
+  loginLimiter,
+  [
+    body('idToken').notEmpty().withMessage('Google token required'),
+    validate,
+  ],
+  authController.googleLogin
 );
 
 router.post('/refresh', authController.refreshToken);

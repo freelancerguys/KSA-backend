@@ -1,5 +1,9 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -33,7 +37,8 @@ export const env = {
   lockMinutes: Number(process.env.LOCK_MINUTES) || 15,
   ipBlockMinutes: Number(process.env.IP_BLOCK_MINUTES) || 30,
   autoBlockOnRateLimit: process.env.AUTO_BLOCK_RATE_LIMIT === 'true',
-  turnstileSecret: process.env.TURNSTILE_SECRET_KEY || '',
+  googleClientId: (process.env.GOOGLE_CLIENT_ID || '').trim(),
+  googleClientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
   uploadMode: process.env.UPLOAD_MODE || 'local',
   uploadPath: process.env.UPLOAD_PATH || 'uploads',
   maxUploadBytes: 5 * 1024 * 1024,

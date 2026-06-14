@@ -44,7 +44,9 @@ app.use(httpsRedirect);
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginEmbedderPolicy: false,
     contentSecurityPolicy: env.nodeEnv === 'production',
+    frameguard: false,
     hsts: env.forceHttps
       ? { maxAge: 31536000, includeSubDomains: true, preload: true }
       : false,
@@ -73,7 +75,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Portal'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Portal'],
   })
 );
 
@@ -88,9 +90,29 @@ app.use(cookieParser());
 app.use(mongoSanitize());
 app.use(xss());
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+app.use('/uploads', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  const frameAncestors = ["'self'", env.clientUrl, env.adminUrl].filter(Boolean).join(' ');
+  res.setHeader('Content-Security-Policy', `frame-ancestors ${frameAncestors}`);
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    return res.sendStatus(204);
+  }
+  next();
+}, express.static(path.join(__dirname, '../uploads'), {
   dotfiles: 'deny',
   index: false,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  },
 }));
 
 app.use(apiPathRewrite);

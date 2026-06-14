@@ -439,6 +439,7 @@ export const getDashboardNotifications = async () => {
   if (stats.pendingPayments > 0) {
     notifications.push({
       id: 'pending-payments',
+      fingerprint: `pending-payments-${stats.pendingPayments}-${stats.pendingAmount}`,
       type: 'warning',
       title: `${stats.pendingPayments} pending payment(s)`,
       message: `₹${stats.pendingAmount} awaiting approval`,
@@ -448,6 +449,7 @@ export const getDashboardNotifications = async () => {
   if (stats.overdueCount > 0) {
     notifications.push({
       id: 'overdue-fees',
+      fingerprint: `overdue-fees-${stats.overdueCount}`,
       type: 'error',
       title: `${stats.overdueCount} student(s) overdue`,
       message: 'No approved fee for current month',
@@ -457,6 +459,7 @@ export const getDashboardNotifications = async () => {
   if (stats.studentsThisMonth > 0) {
     notifications.push({
       id: 'new-students',
+      fingerprint: `new-students-${stats.studentsThisMonth}-${stats.studentGrowth}`,
       type: 'info',
       title: `${stats.studentsThisMonth} new student(s) this month`,
       message: `+${stats.studentGrowth}% growth`,
@@ -466,6 +469,7 @@ export const getDashboardNotifications = async () => {
   if (stats.rejectedPayments > 0) {
     notifications.push({
       id: 'rejected',
+      fingerprint: `rejected-${stats.rejectedPayments}`,
       type: 'error',
       title: `${stats.rejectedPayments} rejected payment(s)`,
       message: 'Review and follow up',

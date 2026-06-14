@@ -72,10 +72,10 @@ export const activity = crud(Activity, { imageField: 'image', sort: '-eventDate'
 
 export const getPublicContent = asyncHandler(async (req, res) => {
   const [blogs, achievements, galleryItems, activities, settings] = await Promise.all([
-    Blog.find({ isPublished: true }).sort('-createdAt').limit(6),
-    Achievement.find().sort('-achievementDate').limit(8),
-    Gallery.find().sort('order').limit(12),
-    Activity.find().sort('-eventDate').limit(6),
+    Blog.find({ isPublished: true }).sort('-createdAt'),
+    Achievement.find().sort('-achievementDate'),
+    Gallery.find().sort('order'),
+    Activity.find().sort('-eventDate'),
     Settings.find(),
   ]);
 
