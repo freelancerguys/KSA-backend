@@ -16,6 +16,43 @@ import { verifyGoogleIdToken } from './googleAuthService.js';
 
 const isLocked = (user) => user.lockUntil && user.lockUntil > new Date();
 
+const lockMinutesRemaining = (user) =>
+  Math.max(1, Math.ceil((user.lockUntil - Date.now()) / 60000));
+
+/** Clear stale lock state so users get a fresh attempt window after lock expires. */
+const clearExpiredLoginLock = async (user) => {
+  if (!user.lockUntil || user.lockUntil > new Date()) return user;
+  user.loginAttempts = 0;
+  user.lockUntil = undefined;
+  await user.save({ validateBeforeSave: false });
+  return user;
+};
+
+const throwIfLocked = async (user, req, identifier, message = 'Login attempt on locked account') => {
+  if (!isLocked(user)) return;
+  await logSecurityEvent({
+    type: 'account_locked',
+    req,
+    identifier,
+    userId: user._id,
+    message,
+  });
+  const mins = lockMinutesRemaining(user);
+  throw new ApiError(
+    403,
+    `Account temporarily locked. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`
+  );
+};
+
+export const unlockUserAccount = async (userId) => {
+  const user = await User.findById(userId).select('+loginAttempts +lockUntil');
+  if (!user) return false;
+  user.loginAttempts = 0;
+  user.lockUntil = undefined;
+  await user.save({ validateBeforeSave: false });
+  return true;
+};
+
 export const loginUser = async ({ identifier, password }, req) => {
   const id = String(identifier || '').trim().toLowerCase();
   const pwd = String(password || '');
@@ -43,22 +80,15 @@ export const loginUser = async ({ identifier, password }, req) => {
     throw new ApiError(401, 'Invalid credentials');
   }
 
-  if (isLocked(user)) {
-    await logSecurityEvent({
-      type: 'account_locked',
-      req,
-      identifier: id,
-      userId: user._id,
-      message: 'Login attempt on locked account',
-    });
-    throw new ApiError(403, 'Account temporarily locked. Try again later.');
-  }
+  await clearExpiredLoginLock(user);
+  await throwIfLocked(user, req, id);
 
   const valid = await user.comparePassword(pwd);
   if (!valid) {
     user.loginAttempts = (user.loginAttempts || 0) + 1;
     if (user.loginAttempts >= env.maxLoginAttempts) {
       user.lockUntil = new Date(Date.now() + env.lockMinutes * 60 * 1000);
+      user.loginAttempts = 0;
       await logSecurityEvent({
         type: 'account_locked',
         req,
@@ -72,6 +102,14 @@ export const loginUser = async ({ identifier, password }, req) => {
     }
     await user.save({ validateBeforeSave: false });
     await logSecurityEvent({ type: 'login_failed', req, identifier: id, userId: user._id });
+
+    if (isLocked(user)) {
+      const mins = lockMinutesRemaining(user);
+      throw new ApiError(
+        403,
+        `Account temporarily locked. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`
+      );
+    }
     throw new ApiError(401, 'Invalid credentials');
   }
 
@@ -139,16 +177,8 @@ export const loginWithGoogle = async (idToken, req) => {
     throw new ApiError(403, 'Please use the admin panel for admin login.');
   }
 
-  if (isLocked(user)) {
-    await logSecurityEvent({
-      type: 'account_locked',
-      req,
-      identifier: email,
-      userId: user._id,
-      message: 'Google login attempt on locked account',
-    });
-    throw new ApiError(403, 'Account temporarily locked. Try again later.');
-  }
+  // Google sign-in verifies identity — do not block on password lockout.
+  await clearExpiredLoginLock(user);
 
   if (!user.isActive) {
     throw new ApiError(403, 'Account suspended. Contact academy admin.');
@@ -218,12 +248,14 @@ export const refreshAccessToken = async (token) => {
 };
 
 export const changePassword = async (userId, { currentPassword, newPassword }) => {
-  const user = await User.findById(userId).select('+password');
+  const user = await User.findById(userId).select('+password +loginAttempts +lockUntil');
   if (!user) throw new ApiError(404, 'User not found');
   const valid = await user.comparePassword(currentPassword);
   if (!valid) throw new ApiError(400, 'Current password is incorrect');
   user.password = newPassword;
   user.refreshToken = null;
+  user.loginAttempts = 0;
+  user.lockUntil = undefined;
   await user.save();
   return true;
 };

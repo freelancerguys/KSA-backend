@@ -49,6 +49,7 @@ router.put('/:id', authorize('admin'), adminLimiter, audit('student_update', 'st
 router.patch('/:id/suspend', authorize('admin'), studentController.suspendStudent);
 router.delete('/:id', authorize('admin'), studentController.deleteStudent);
 router.post('/:id/reset-password', authorize('admin'), studentController.resetPassword);
+router.post('/:id/unlock-account', authorize('admin'), studentController.unlockAccount);
 router.post('/:id/documents', authorize('admin'), uploadPdf.array('documents', 10), studentController.uploadDocuments);
 router.delete('/:id/documents/:docId', authorize('admin'), studentController.deleteDocument);
 

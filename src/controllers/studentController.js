@@ -19,6 +19,7 @@ import {
   dismissStudentNotification,
 } from '../services/studentNotificationService.js';
 import { generateStudentIdCardPdf, buildIdCardFilename } from '../services/idCardService.js';
+import { unlockUserAccount } from '../services/authService.js';
 
 const STUDENT_EDITABLE = [
   'phone',
@@ -238,8 +239,19 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!student) throw new ApiError(404, 'Student not found');
   const user = await User.findById(student.user);
   user.password = req.body.password || 'Student@123';
+  user.loginAttempts = 0;
+  user.lockUntil = undefined;
+  user.refreshToken = null;
   await user.save();
-  res.json({ success: true, message: 'Password reset successfully' });
+  res.json({ success: true, message: 'Password reset successfully. Account unlocked.' });
+});
+
+export const unlockAccount = asyncHandler(async (req, res) => {
+  const student = await Student.findById(req.params.id);
+  if (!student) throw new ApiError(404, 'Student not found');
+  const unlocked = await unlockUserAccount(student.user);
+  if (!unlocked) throw new ApiError(404, 'User not found');
+  res.json({ success: true, message: 'Account unlocked successfully' });
 });
 
 export const uploadDocuments = asyncHandler(async (req, res) => {
